@@ -227,6 +227,52 @@ def change_password():
     except Exception as e:
         conn.close()
         return jsonify({"message": "Failed to update password", "error": str(e)}), 500
+
+#delete saved password entry
+@app.route('/delete_entry', methods=['DELETE'])
+@login_required
+def delete_entry():
+    data = request.get_json()
+    website = data.get('website')
+
+    if not website:
+        return jsonify({"message": "Missing required fields"}), 400
+
+    username = session['username']
+
+    #connect to database
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+
+    #get user_id from username
+    cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+    user = cursor.fetchone()
+
+    if not user:
+        conn.close()
+        return jsonify({"message": "User not found"}), 404
+
+    user_id = user[0]
+
+    #delete entry for specififed website
+    try:
+        cursor.execute("""
+                        DELETE FROM saved_passwords
+                        WHERE user_id = ? AND website = ?
+                        """, (user_id, website))
+
+        if cursor.rowcount == 0:  # Check if any row was deleted
+            conn.close()
+            return jsonify({"message": "No matching entry found"}), 404
+
+        conn.commit()
+        conn.close()
+        return jsonify({"message": "Password entry deleted successfully"}), 200
+
+    except Exception as e:
+        conn.close()
+        return jsonify({"message": "Failed to delete password", "error": str(e)}), 500
+
    
 #check session status (useful to check if user still logged in
 @app.route('/session', methods=['GET'])
